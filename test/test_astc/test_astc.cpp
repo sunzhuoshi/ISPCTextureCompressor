@@ -128,7 +128,7 @@ void alloc_image(rgba_surface* img, int width, int height)
 void compress_astc_tex(rgba_surface* output_tex, rgba_surface* img, int block_width, int block_height)
 {
     astc_enc_settings settings;
-    GetProfile_astc_alpha_fast(&settings, block_width, block_height);
+    GetProfile_astc_fast(&settings, block_width, block_height);
     CompressBlocksASTC(img, output_tex->ptr, &settings);
 }
 
