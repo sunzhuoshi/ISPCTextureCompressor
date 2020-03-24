@@ -52,6 +52,7 @@ void load_bmp(rgba_surface* img, char* filename)
     std::vector<uint8_t> raw_line;
     raw_line.resize(bmpStride);
 
+	fseek(f, file_header.bfOffBits, SEEK_SET);
     for (int y = 0; y < img->height; y++)
     {
         int yy = img->height - 1 - y;
