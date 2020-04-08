@@ -21,6 +21,31 @@
 #include <vector>
 #include "ispc_texcomp.h"
 
+struct block_size_t {
+	int x;
+	int y;
+	int z;
+	block_size_t(): x(0), y(0), z(0) {}
+};
+
+double get_time()
+{
+	FILETIME file_time;
+	GetSystemTimeAsFileTime(&file_time);
+
+	unsigned __int64 ticks = file_time.dwHighDateTime;
+	ticks = (ticks << 32) | file_time.dwLowDateTime;
+
+	return ((double)ticks) / 1.0e7;
+}
+
+int get_num_of_cores()
+{
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	return sysinfo.dwNumberOfProcessors;
+}
+
 size_t align(size_t bytes, const int alignement)
 {
     return (bytes + alignement - 1) & ~(alignement - 1);
@@ -135,10 +160,10 @@ void compress_astc_tex(rgba_surface* output_tex, rgba_surface* img, int block_wi
 void compress_astc_tex_mt(rgba_surface* output_tex, rgba_surface* img, int block_width, int block_height)
 {
     astc_enc_settings settings;
-    GetProfile_astc_alpha_slow(&settings, block_width, block_height);
+    GetProfile_astc_slow(&settings, block_width, block_height);
 
-    int thread_count = 32;
-
+	int thread_count = get_num_of_cores();
+	printf("\nthread count: %d\n", thread_count);
 #pragma omp parallel for
     for (int t = 0; t < thread_count; t++)
     {
@@ -181,15 +206,15 @@ void fill_borders(rgba_surface* dst, rgba_surface* src, int block_width, int blo
     ReplicateBorders(dst, src, 0, 0, 32);
 }
 
-void enc_astc_file(char* filename, char* dst_filename)
+void enc_astc_file(char* filename, char* dst_filename, block_size_t &block_size)
 {
+    double start_time = get_time();
     rgba_surface src_img;
     load_bmp(&src_img, filename);
     flip_image(&src_img);
 
-    int block_width = 6;
-    int block_height = 6;
-
+    int block_width = block_size.x;
+    int block_height = block_size.y;
     rgba_surface output_tex;
     output_tex.width = idiv_ceil(src_img.width, block_width);
     output_tex.height = idiv_ceil(src_img.height, block_height);
@@ -200,24 +225,48 @@ void enc_astc_file(char* filename, char* dst_filename)
     fill_borders(&edged_img, &src_img, block_width, block_height);
 
     printf("encoding <%s>...", filename);
+    double start_encoding_time = get_time();
 
-    compress_astc_tex(&output_tex, &edged_img, block_width, block_height);
+    compress_astc_tex_mt(&output_tex, &edged_img, block_width, block_height);
 
-    printf("done.\n");
+	double end_encoding_time = get_time();
+	printf("done.\n");
 
     output_tex.width = src_img.width;
     output_tex.height = src_img.height;
     store_astc(&output_tex, block_width, block_height, dst_filename);
+    double end_time = get_time();
+    printf("total time: %.2lf seconds, encoding time: %.2lf seconds\n", end_time - start_time, end_encoding_time - start_encoding_time);
+}
+
+bool parse_block_size(char *str, struct block_size_t &block_size)
+{
+    int dimensions = sscanf(str, "%dx%d", &block_size.x, &block_size.y);
+    if (dimensions == 2) {
+        if (block_size.x == block_size.y) {
+            if (block_size.x >= 4 && block_size.y <= 8) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void main(int argc, char *argv[])
 {
-    if (argc == 3)
+    if (argc == 4)
     {
-        enc_astc_file(argv[1], argv[2]);
+        block_size_t block_size;
+        char *block_size_str = argv[3];
+        if (parse_block_size(block_size_str, block_size)) {
+            enc_astc_file(argv[1], argv[2], block_size);
+        }
+        else {
+            printf("invalid block size: %s\n", block_size_str);
+        }
     }
     else
     {
-        printf("usage:\ntest_astc input.bmp output.astc\n");
+        printf("usage:\ntest_astc input.bmp output.astc blocksize(e.g. 8x8)\n");
     }
 }

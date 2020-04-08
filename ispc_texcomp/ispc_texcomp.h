@@ -97,6 +97,7 @@ extern "C" void GetProfile_etc_slow(etc_enc_settings* settings);
 // profiles for ASTC
 extern "C" void GetProfile_astc_fast(astc_enc_settings* settings, int block_width, int block_height);
 extern "C" void GetProfile_astc_alpha_fast(astc_enc_settings* settings, int block_width, int block_height);
+extern "C" void GetProfile_astc_slow(astc_enc_settings* settings, int block_width, int block_height);
 extern "C" void GetProfile_astc_alpha_slow(astc_enc_settings* settings, int block_width, int block_height);
 
 // helper function to replicate border pixels for the desired block sizes (bpp = 32 or 64)

@@ -41,6 +41,16 @@ void GetProfile_astc_alpha_fast(astc_enc_settings* settings, int block_width, in
     settings->refineIterations = 2;
 }
 
+void GetProfile_astc_slow(astc_enc_settings* settings, int block_width, int block_height)
+{
+	settings->block_width = block_width;
+	settings->block_height = block_height;
+	settings->channels = 3;
+
+	settings->fastSkipTreshold = 64;
+	settings->refineIterations = 2;
+}
+
 void GetProfile_astc_alpha_slow(astc_enc_settings* settings, int block_width, int block_height)
 {
     settings->block_width = block_width;
